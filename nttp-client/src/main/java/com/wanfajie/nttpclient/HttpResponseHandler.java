@@ -1,6 +1,5 @@
 package com.wanfajie.nttpclient;
 
-import com.wanfajie.netty.util.ChannelUtils;
 import com.wanfajie.nttpclient.exception.InvalidResponseException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -44,7 +43,7 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
             }
 
             if (!HttpUtil.isKeepAlive(response)) {
-                ChannelUtils.closeOnFlush(ctx.channel());
+                ctx.close();
             }
         } else {
             throw new InvalidResponseException(response.toString());
@@ -52,7 +51,7 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         if (errorHandler != null) {
             try {
                 errorHandler.accept(cause);
@@ -62,6 +61,5 @@ public class HttpResponseHandler extends SimpleChannelInboundHandler<FullHttpRes
         } else {
             ctx.fireExceptionCaught(cause);
         }
-        ChannelUtils.closeOnFlush(ctx.channel());
     }
 }
