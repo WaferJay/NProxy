@@ -8,7 +8,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.proxy.Socks4ProxyHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
@@ -35,10 +34,6 @@ public class HttpProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             ChannelHandler handler = createProxyHandler(proxy);
             if (proxy.getType() == HttpProxy.Type.HTTP) {
-
-                if (ch.pipeline().get(SslHandler.class) != null) {
-                    ch.pipeline().remove(SslHandler.class);
-                }
                 ch.pipeline().addAfter("http-client-codec", PROXY_HANDLER_NAME, handler);
             } else {
                 ch.pipeline().addFirst(PROXY_HANDLER_NAME, handler);
