@@ -1,56 +1,36 @@
 package com.wanfajie.nttpclient;
 
+import com.wanfajie.nttpclient.config.NttpClientConfig;
 import com.wanfajie.nttpclient.exception.SchemaException;
-import com.wanfajie.nttpclient.strategy.HttpClientChannelStrategy;
-import com.wanfajie.nttpclient.strategy.PooledHttpClientChannelStrategy;
-import com.wanfajie.nttpclient.strategy.SimpleHttpClientChannelStrategy;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
+import com.wanfajie.nttpclient.strategy.DefaultHttpClientStrategyFactory;
+import com.wanfajie.nttpclient.strategy.HttpClientStrategy;
+import com.wanfajie.nttpclient.strategy.HttpClientStrategyFactory;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.util.internal.ObjectUtil;
 
 import java.net.InetSocketAddress;
 
 public class DefaultNttpClient implements NttpClient {
 
-    private final HttpClientChannelStrategy httpStrategy;
-    private final HttpClientChannelStrategy httpsStrategy;
+    private final HttpClientStrategy httpStrategy;
+    private final HttpClientStrategy httpsStrategy;
 
-    public DefaultNttpClient(EventLoopGroup worker, Class<? extends SocketChannel> channelClass) {
-        this(worker, channelClass, 0, 0);
+    public DefaultNttpClient(NttpClientConfig config) {
+        this(config, null);
     }
 
-    public DefaultNttpClient(EventLoopGroup worker, Class<? extends SocketChannel> channelClass,
-                             int maxConnectionPoolSize, int connectTimeoutSeconds) {
-
-        ObjectUtil.checkNotNull(worker, "worker");
-        ObjectUtil.checkNotNull(channelClass, "channelClass");
-        ObjectUtil.checkPositiveOrZero(maxConnectionPoolSize, "maxConnectionPoolSize");
-        ObjectUtil.checkPositiveOrZero(connectTimeoutSeconds, "connectTimeoutSeconds");
-
-        Bootstrap bs = new Bootstrap()
-                .group(worker)
-                .channel(channelClass);
-
-        if (connectTimeoutSeconds > 0) {
-            bs.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutSeconds * 1000);
+    public DefaultNttpClient(NttpClientConfig config, HttpClientStrategyFactory strategyFactory) {
+        if (strategyFactory == null) {
+            strategyFactory = new DefaultHttpClientStrategyFactory();
         }
 
-        if (maxConnectionPoolSize > 0) {
-            this.httpStrategy = new PooledHttpClientChannelStrategy(bs, worker, maxConnectionPoolSize, false);
-            this.httpsStrategy = new PooledHttpClientChannelStrategy(bs, worker, maxConnectionPoolSize, true);
-        } else {
-            this.httpStrategy = new SimpleHttpClientChannelStrategy(bs, false);
-            this.httpsStrategy = new SimpleHttpClientChannelStrategy(bs, true);
-        }
+        this.httpStrategy = strategyFactory.create(config, false);
+        this.httpsStrategy = strategyFactory.create(config, true);
     }
 
     @Override
     public HttpRequestFlow send(InetSocketAddress address, String schema, FullHttpRequest request) {
         schema = schema.toUpperCase();
-        HttpClientChannelStrategy strategy;
+        HttpClientStrategy strategy;
         if ("HTTP".equals(schema)) {
             strategy = httpStrategy;
         } else if ("HTTPS".equals(schema)) {

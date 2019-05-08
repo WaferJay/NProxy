@@ -25,14 +25,14 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.net.InetSocketAddress;
 import java.util.Objects;
 
-public class PooledHttpClientChannelStrategy implements HttpClientChannelStrategy {
+public class PooledHttpClientStrategy implements HttpClientStrategy {
 
     private static final AttributeKey<HttpProxy> PROXY_KEY = HttpProxyInitializer.PROXY_KEY;
     private static final AttributeKey<ProxyAddressWrapper> PROXY_WRAPPER_KEY = AttributeKey.newInstance("proxyAddressWrapper");
     private static final int DEFAULT_MAX_CONNECTIONS = 2;
 
     private static final DefaultAddressResolverGroup RESOLVER = DefaultAddressResolverGroup.INSTANCE;
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledHttpClientChannelStrategy.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledHttpClientStrategy.class);
 
     private final Bootstrap bootstrap;
     private final EventLoopGroup workers;
@@ -42,8 +42,8 @@ public class PooledHttpClientChannelStrategy implements HttpClientChannelStrateg
 
     private AbstractChannelPoolMap<ProxyAddressWrapper, FixedChannelPool> channelPoolMap;
 
-    public PooledHttpClientChannelStrategy(Bootstrap bootstrap, EventLoopGroup workers,
-            int maxConnection, boolean httpsMode) {
+    public PooledHttpClientStrategy(Bootstrap bootstrap, EventLoopGroup workers,
+                                    int maxConnection, boolean httpsMode) {
 
         ObjectUtil.checkNotNull(bootstrap, "bootstrap");
         ObjectUtil.checkNotNull(workers, "workers");
@@ -57,7 +57,7 @@ public class PooledHttpClientChannelStrategy implements HttpClientChannelStrateg
         initChannelPool();
     }
 
-    public PooledHttpClientChannelStrategy(EventLoopGroup worker, Class<? extends SocketChannel> channelClass, int maxConnection) {
+    public PooledHttpClientStrategy(EventLoopGroup worker, Class<? extends SocketChannel> channelClass, int maxConnection) {
         this(
             new Bootstrap()
                 .group(worker)
@@ -197,9 +197,9 @@ public class PooledHttpClientChannelStrategy implements HttpClientChannelStrateg
     }
 
     /**
-     * {@link PooledHttpClientChannelStrategy#channelPoolMap} 的键，整合目标地址和代理
+     * {@link PooledHttpClientStrategy#channelPoolMap} 的键，整合目标地址和代理
      *
-     * @see PooledHttpClientChannelStrategy#initChannelPool()
+     * @see PooledHttpClientStrategy#initChannelPool()
      * @see #equals(Object)
      */
     private static final class ProxyAddressWrapper {

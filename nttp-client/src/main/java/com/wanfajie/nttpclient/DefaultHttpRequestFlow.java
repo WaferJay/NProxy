@@ -2,7 +2,7 @@ package com.wanfajie.nttpclient;
 
 import com.wanfajie.netty.util.HttpUtils;
 import com.wanfajie.nttpclient.exception.AlreadyCalledException;
-import com.wanfajie.nttpclient.strategy.HttpClientChannelStrategy;
+import com.wanfajie.nttpclient.strategy.HttpClientStrategy;
 import com.wanfajie.proxy.HttpProxy;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -31,7 +31,7 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
 
     private final InetSocketAddress socketAddress;
     private final HttpRequest request;
-    private final HttpClientChannelStrategy strategy;
+    private final HttpClientStrategy strategy;
 
     private Consumer<Throwable> errorHandler;
     private ResponseConsumer responseHandler;
@@ -43,7 +43,7 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
 
     private HttpProxy proxy;
 
-    DefaultHttpRequestFlow(HttpClientChannelStrategy strategy, InetSocketAddress address, HttpRequest request) {
+    DefaultHttpRequestFlow(HttpClientStrategy strategy, InetSocketAddress address, HttpRequest request) {
         this.strategy = strategy;
         this.request = request;
         this.socketAddress = address;

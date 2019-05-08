@@ -10,7 +10,7 @@ import java.net.InetSocketAddress;
  * 生产、复用连接
  * @author WaferJay
  */
-public interface HttpClientChannelStrategy {
+public interface HttpClientStrategy {
 
     Future<Channel> createChannel(InetSocketAddress address, HttpProxy proxy);
     Future<Void> recycler(Channel channel);

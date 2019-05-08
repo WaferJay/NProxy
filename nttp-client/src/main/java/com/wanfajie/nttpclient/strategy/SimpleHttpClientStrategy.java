@@ -11,27 +11,32 @@ import io.netty.util.concurrent.Promise;
 
 import java.net.InetSocketAddress;
 
-public class SimpleHttpClientChannelStrategy implements HttpClientChannelStrategy {
+public class SimpleHttpClientStrategy implements HttpClientStrategy {
 
     private final Bootstrap bootstrap;
+    private final boolean httpsMode;
 
-    public SimpleHttpClientChannelStrategy(Bootstrap bootstrap, boolean httpsMode) {
-
-        ChannelInitializer<SocketChannel> initializer = new HttpSnoopClientInitializer(httpsMode);
-        initializer = new HttpProxyInitializer(initializer);
-
+    public SimpleHttpClientStrategy(Bootstrap bootstrap, boolean httpsMode) {
+        this.httpsMode = httpsMode;
+        ChannelInitializer<SocketChannel> initializer = createInitializer();
         this.bootstrap = bootstrap.clone()
                 .option(ChannelOption.SO_KEEPALIVE, false)
                 .handler(initializer);
     }
 
-    public SimpleHttpClientChannelStrategy(EventLoopGroup workers, Class<? extends SocketChannel> channelClass, boolean httpsMode) {
+    public SimpleHttpClientStrategy(EventLoopGroup workers, Class<? extends SocketChannel> channelClass, boolean httpsMode) {
         this(
             new Bootstrap()
                 .group(workers)
                 .channel(channelClass),
             httpsMode
         );
+    }
+
+    protected ChannelInitializer<SocketChannel> createInitializer() {
+        ChannelInitializer<SocketChannel> initializer = new HttpSnoopClientInitializer(httpsMode);
+        initializer = new HttpProxyInitializer(initializer);
+        return initializer;
     }
 
     @Override

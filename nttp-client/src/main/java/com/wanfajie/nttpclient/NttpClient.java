@@ -1,11 +1,12 @@
 package com.wanfajie.nttpclient;
 
+import com.wanfajie.nttpclient.config.NttpClientConfigImpl;
+import com.wanfajie.nttpclient.config.NttpClientMutableConfig;
 import com.wanfajie.nttpclient.exception.SchemaException;
+import com.wanfajie.nttpclient.strategy.HttpClientStrategyFactory;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
@@ -63,33 +64,41 @@ public interface NttpClient extends Closeable, AutoCloseable {
 
     class Builder {
 
-        private EventLoopGroup worker;
-        private Class<? extends SocketChannel> channelClass;
-        private int maxConnectionPoolSize = 0;
-        private int connectTimeout = 0;
+        private NttpClientMutableConfig config = new NttpClientConfigImpl();
+        private HttpClientStrategyFactory factory;
+
+        public Builder config(NttpClientMutableConfig config) {
+            this.config = config;
+            return this;
+        }
 
         public Builder group(EventLoopGroup worker) {
-            this.worker = worker;
+            config.group(worker);
             return this;
         }
 
         public Builder channel(Class<? extends SocketChannel> channelClass) {
-            this.channelClass = channelClass;
+            config.channelClass(channelClass);
             return this;
         }
 
         public Builder maxConnectionPerServer(int size) {
-            this.maxConnectionPoolSize = size;
+            config.connectionPerServer(size);
             return this;
         }
 
         public Builder connectTimeout(int seconds) {
-            this.connectTimeout = seconds;
+            config.connectTimeout(seconds);
+            return this;
+        }
+
+        public Builder strategyFactory(HttpClientStrategyFactory factory) {
+            this.factory = factory;
             return this;
         }
 
         public NttpClient build() {
-            return new DefaultNttpClient(worker, channelClass, maxConnectionPoolSize, connectTimeout);
+            return new DefaultNttpClient(config, factory);
         }
     }
 }
