@@ -153,31 +153,6 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
         strategy.recycler(ch);
     }
 
-    private void addResponseHandler(Channel ch, Promise<Void> promise) {
-        ResponseConsumer cb = resp -> {
-            if (responseHandler != null) {
-                responseHandler.accept(resp);
-            }
-            promise.setSuccess(null);
-        };
-        Consumer<Throwable> eb = e -> {
-            if (errorHandler != null) {
-                try {
-                    errorHandler.accept(e);
-                } catch (Exception e1) {
-                    e1.addSuppressed(e);
-                    promise.setFailure(e1);
-                    throw e1;
-                }
-            }
-            promise.setFailure(e);
-        };
-
-        HttpResponseHandler handler = new HttpResponseHandler(cb, eb);
-        ch.pipeline()
-          .addLast("resp-handler", handler);
-    }
-
     private void addTimeoutHandler(Channel ch) {
         if (delay <= 0) {
             return;
@@ -209,23 +184,59 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
         return request(promise);
     }
 
+    private Consumer<Throwable> createErrorBack(Promise<Void> promise) {
+
+        final Consumer<Throwable> errorHandler = this.errorHandler;
+
+        return e -> {
+            if (errorHandler != null) {
+                try {
+                    errorHandler.accept(e);
+                } catch (Exception e1) {
+                    e1.addSuppressed(e);
+                    promise.setFailure(e1);
+                    throw e1;
+                }
+            }
+            promise.setFailure(e);
+        };
+    }
+
+    private ResponseConsumer createResponseBack(Promise<Void> promise) {
+
+        final ResponseConsumer responseHandler = this.responseHandler;
+
+        return resp -> {
+            if (responseHandler != null) {
+                responseHandler.accept(resp);
+            }
+            promise.setSuccess(null);
+        };
+    }
+
     @Override
     public Future<Void> request(Promise<Void> promise) {
         checkCalled();
         joinParams();
 
-        Future<Channel> future;
-        future = strategy.createChannel(socketAddress, proxy);
+        Future<Channel> future = strategy.createChannel(socketAddress, proxy);
+
+        Consumer<Throwable> eb = createErrorBack(promise);
+        ResponseConsumer cb = createResponseBack(promise);
 
         future.addListener(f -> {
             if (!f.isSuccess()) {
-                promise.setFailure(f.cause());
+                eb.accept(f.cause());
                 return;
             }
 
             Channel ch = future.get();
             promise.addListener(ff -> recyclerChannel(ch));
-            addResponseHandler(ch, promise);
+
+            HttpResponseHandler handler = new HttpResponseHandler(cb, eb);
+            ch.pipeline()
+                    .addLast("resp-handler", handler);
+
             addTimeoutHandler(ch);
 
             if (strategy.keepAlive()) {
@@ -238,10 +249,6 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
             ch.writeAndFlush(request);
         });
 
-        return promise.addListener(f -> {
-            if (!f.isSuccess() && errorHandler != null) {
-                errorHandler.accept(f.cause());
-            }
-        });
+        return promise;
     }
 }
