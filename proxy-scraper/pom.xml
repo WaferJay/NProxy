@@ -5,8 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.wanfajie</groupId>
-    <artifactId>n-proxy</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>proxy-scraper</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -15,38 +14,35 @@
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
 
-    <modules>
-        <module>nttp-client</module>
-        <module>proxy</module>
-        <module>netty-util</module>
-        <module>proxy-scraper</module>
-    </modules>
-
     <dependencies>
         <dependency>
             <groupId>com.wanfajie</groupId>
             <artifactId>nttp-client</artifactId>
             <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>com.wanfajie</groupId>
-            <artifactId>netty-util</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.wanfajie</groupId>
             <artifactId>proxy</artifactId>
             <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>4.1.35.Final</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.11.3</version>
         </dependency>
         <dependency>
             <groupId>com.wanfajie</groupId>
-            <artifactId>proxy-scraper</artifactId>
+            <artifactId>netty-util</artifactId>
             <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
