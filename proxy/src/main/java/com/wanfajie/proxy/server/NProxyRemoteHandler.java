@@ -74,7 +74,7 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace();
+        logger.error("exception caught {} - {}", inboundChannel, channel, cause);
         ChannelUtils.closeOnFlush(ctx.channel());
     }
 }

@@ -83,7 +83,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        logger.error("exception caught", cause);
+        logger.error("exception caught {} - {}", inboundChannel, outboundChannel, cause);
         ChannelUtils.closeOnFlush(ctx.channel());
     }
 }

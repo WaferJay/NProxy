@@ -25,23 +25,28 @@ public class SimpleHttpProxyHandler extends ChannelOutboundHandlerAdapter {
 
     private InternalLogger logger = InternalLoggerFactory.getInstance(SimpleHttpProxyHandler.class);
 
-    private SocketAddress destinationAddress;
-    private SocketAddress proxyAddress;
+    private final SocketAddress proxyAddress;
+    private final String username;
+    private final String password;
 
-    private String username;
-    private String password;
-    private AsciiString authorization;
+    private final AsciiString authorization;
+
+    private SocketAddress destinationAddress;
+    private boolean enableSsl = false;
 
     public SimpleHttpProxyHandler(SocketAddress proxyAddress) {
-        this.proxyAddress = proxyAddress;
+        this.proxyAddress = ObjectUtil.checkNotNull(proxyAddress, "proxyAddress");
+        this.username = null;
+        this.password = null;
+        this.authorization = null;
     }
 
     public SimpleHttpProxyHandler(SocketAddress proxyAddress, String username, String password) {
-        ObjectUtil.checkNotNull(username, "username");
-        ObjectUtil.checkNotNull(password, "password");
 
-        this.username = username;
-        this.password = password;
+        this.proxyAddress = ObjectUtil.checkNotNull(proxyAddress, "proxyAddress");
+        this.username = ObjectUtil.checkNotNull(username, "username");
+        this.password = ObjectUtil.checkNotNull(password, "password");
+
         ByteBuf authz = Unpooled.copiedBuffer(username + ':' + password, CharsetUtil.UTF_8);
         ByteBuf authzBase64 = Base64.encode(authz, false);
         this.authorization = new AsciiString("Basic " + authzBase64.toString(CharsetUtil.US_ASCII));
@@ -51,21 +56,14 @@ public class SimpleHttpProxyHandler extends ChannelOutboundHandlerAdapter {
     }
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
-        boolean enableSsl = ctx.pipeline().get(SslHandler.class) != null;
+    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
+                        SocketAddress localAddress, ChannelPromise promise) {
 
+        enableSsl = ctx.pipeline().get(SslHandler.class) != null;
         if (enableSsl) {
-            throw new IllegalStateException("cannot be used with SSL.");
-        }
-    }
-
-    @Override
-    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
-        try {
-            handlerAdded(ctx);
-        } catch (Exception e) {
-            promise.setFailure(e);
-            return;
+            logger.warn("HTTP proxy server may not be able to proxy HTTPS protocol properly");
+            ctx.pipeline().remove(SslHandler.class);
+            logger.warn("Removed SslHandler");
         }
 
         if (this.destinationAddress != null) {
@@ -84,7 +82,8 @@ public class SimpleHttpProxyHandler extends ChannelOutboundHandlerAdapter {
             String host = request.headers().get(HttpHeaderNames.HOST);
 
             if (host != null) {
-                String fullUrl = "http://" + host + uri;
+                String scheme = enableSsl ? "https://" : "http://";
+                String fullUrl = scheme + host + uri;
                 request.setUri(fullUrl);
                 logger.debug("HTTP proxy: {} => {}", uri, fullUrl);
             } else {
