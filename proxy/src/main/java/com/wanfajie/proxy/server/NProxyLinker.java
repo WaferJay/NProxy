@@ -8,11 +8,15 @@ import java.io.Closeable;
 
 public interface NProxyLinker extends Closeable {
 
-    Future<Channel> acquire(Channel localChannel);
+    default Future<Channel> acquire(Channel localChannel) {
+        return acquire(localChannel, localChannel.eventLoop().newPromise());
+    }
 
     Future<Channel> acquire(Channel localChannel, Promise<Channel> promise);
 
-    Future<Void> release(Channel remoteChannel);
+    default Future<Void> release(Channel remoteChannel) {
+        return release(remoteChannel, remoteChannel.eventLoop().newPromise());
+    }
 
     Future<Void> release(Channel remoteChannel, Promise<Void> promise);
 

@@ -19,9 +19,16 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
     private ChannelHandlerContext context;
     private ChannelFutureListener listener;
 
+    public NProxyRemoteHandler(Channel localChannel) {
+        this.inboundChannel = localChannel;
+    }
+
+    NProxyRemoteHandler() {}
+
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         context = ctx;
+        ctx.fireChannelRegistered();
     }
 
     @Override
@@ -32,11 +39,16 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
         ctx.fireChannelActive();
     }
 
-    public void localChannel(final Channel localChannel) {
-        context.executor().submit(() -> {
+    void localChannel(final Channel localChannel) {
+        if (context.channel().eventLoop().inEventLoop()) {
             logger.debug("New channel: {}", localChannel);
             inboundChannel = localChannel;
-        });
+        } else {
+            context.executor().submit(() -> {
+                logger.debug("New channel: {}", localChannel);
+                inboundChannel = localChannel;
+            });
+        }
     }
 
     @Override
@@ -45,13 +57,13 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
         if (msg instanceof ByteBuf) {
             ByteBuf byteBuf = (ByteBuf) msg;
             int size = byteBuf.readableBytes();
-            logger.info("Receive {] bytes: {} => {}", size, channel, inboundChannel);
+            logger.info("Received {} bytes: {} => {}", size, channel, inboundChannel);
             if (logger.isDebugEnabled()) {
                 String dump = ByteBufUtil.prettyHexDump(byteBuf, 0, 64);
                 logger.debug("Dump {} => {}: {}", channel, inboundChannel, dump);
             }
         } else {
-            logger.info("Receive {}: {} => {}", msg, channel, inboundChannel);
+            logger.info("Received {}: {} => {}", msg, channel, inboundChannel);
         }
     }
 

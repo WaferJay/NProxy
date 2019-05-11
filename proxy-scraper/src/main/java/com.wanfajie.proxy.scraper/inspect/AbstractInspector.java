@@ -15,11 +15,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
+import io.netty.util.internal.PlatformDependent;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public abstract class AbstractInspector implements Inspector, HttpClientStrategyFactory {
@@ -28,9 +28,9 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
 
     private final NttpClient client;
 
+    private ConcurrentMap<HttpProxy, Promise<EvaluationReport>> tasks = PlatformDependent.newConcurrentHashMap();
     private InspectorHttpClientStrategy httpClientStrategy;
     private InspectorHttpClientStrategy httpsClientStrategy;
-    private ConcurrentMap<HttpProxy, Promise<EvaluationReport>> tasks = new ConcurrentHashMap<>();
     private volatile boolean closed = false;
 
     public AbstractInspector(NttpClient.Builder builder) {

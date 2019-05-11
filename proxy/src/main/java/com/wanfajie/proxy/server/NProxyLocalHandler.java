@@ -48,13 +48,17 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
 
-        if (outboundChannel != null && outboundChannel.isActive()) {
+        if (outboundChannel == null) {
+            throw new IllegalStateException();
+        }
+
+        if (outboundChannel.isActive()) {
             outboundChannel.writeAndFlush(msg).addListener(listener);
 
             if (msg instanceof ByteBuf) {
                 ByteBuf byteBuf = (ByteBuf) msg;
                 int size = byteBuf.readableBytes();
-                logger.info("Sent {] bytes: {} => {}", size, inboundChannel, outboundChannel);
+                logger.info("Sent {} bytes: {} => {}", size, inboundChannel, outboundChannel);
                 if (logger.isDebugEnabled()) {
                     String dump = ByteBufUtil.prettyHexDump(byteBuf, 0, 64);
                     logger.debug("Dump {} => {}: {}", inboundChannel, outboundChannel, dump);
