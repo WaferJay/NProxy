@@ -44,18 +44,30 @@ public abstract class InspectorChannelHandler extends ChannelDuplexHandler imple
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof FullHttpResponse) {
+            recordReceived();
+
             FullHttpResponse response = (FullHttpResponse) msg;
             int readerIndex = response.content().readerIndex();
+
             try {
-                recordReceived();
+                if (!checkResponse(response)) {
+                    throw new IncorrectResponseException(response.content());
+                }
+            } catch (Exception e) {
+                ReferenceCountUtil.release(msg);
+                throw e;
+            }
+            response.content().readerIndex(readerIndex);
+
+            try {
                 isAnonymous = isAnonymous(response);
             } catch (Exception e) {
-                logger.info("Decode fail", e);
+                logger.warn("Decode fail", e);
 
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Dump: {}", MyByteBufUtil.safePrettyHexDump(response.content(), 0, 128));
+                if (logger.isInfoEnabled()) {
+                    logger.info("Dump:\n{}", MyByteBufUtil.safePrettyHexDump(response.content(), 0, 128));
                 }
 
                 ReferenceCountUtil.release(msg);
@@ -68,8 +80,7 @@ public abstract class InspectorChannelHandler extends ChannelDuplexHandler imple
         ctx.fireChannelRead(msg);
     }
 
-    // TODO: 验证Response内容的方法
-
+    protected abstract boolean checkResponse(FullHttpResponse response);
     protected abstract boolean isAnonymous(FullHttpResponse response);
 
     protected long recordConnecting() {

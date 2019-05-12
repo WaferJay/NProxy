@@ -41,6 +41,15 @@ public class HttpbinInspectorChannelHandler extends InspectorChannelHandler {
         return equ;
     }
 
+    @Override
+    protected boolean checkResponse(FullHttpResponse response) {
+        String body = response.content().toString(CharsetUtil.US_ASCII);
+        body = body.trim();
+
+        return response.status().code() == 200 &&
+                body.startsWith("{") && body.endsWith("}");
+    }
+
     protected boolean isAnonymous(FullHttpResponse response) {
         String jsonStr = response.content().toString(CharsetUtil.US_ASCII);
         String originField = parseJsonOriginField(jsonStr);

@@ -201,7 +201,7 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
                     throw e1;
                 }
             }
-            promise.setFailure(e);
+            promise.tryFailure(e);
         };
     }
 

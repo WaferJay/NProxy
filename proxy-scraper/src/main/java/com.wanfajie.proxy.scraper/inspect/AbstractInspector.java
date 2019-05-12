@@ -51,14 +51,9 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
         promise.addListener(f -> tasks.remove(proxy));
 
         client.get(inspectorURI())
-                .onError(promise::setFailure)
+                .onError(promise::tryFailure)
                 .proxy(proxy)
-                .request()
-                .addListener(f -> {
-                    if (!f.isSuccess()) {
-                        promise.tryFailure(f.cause());
-                    }
-                });
+                .request();
 
         return promise;
     }
