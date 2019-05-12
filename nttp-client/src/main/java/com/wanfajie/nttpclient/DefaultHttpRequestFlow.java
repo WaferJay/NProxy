@@ -144,10 +144,13 @@ public class DefaultHttpRequestFlow implements HttpRequestFlow {
     }
 
     private void recyclerChannel(Channel ch) {
-        ch.pipeline().remove(HttpResponseHandler.class);
-        boolean hasTimeoutHandler = ch.pipeline().get(ReadTimeoutHandler.class) != null;
-        if (hasTimeoutHandler) {
-            ch.pipeline().remove(ReadTimeoutHandler.class);
+        if (ch.isActive()) {
+            ch.pipeline().remove(HttpResponseHandler.class);
+
+            boolean hasTimeoutHandler = ch.pipeline().get(ReadTimeoutHandler.class) != null;
+            if (hasTimeoutHandler) {
+                ch.pipeline().remove(ReadTimeoutHandler.class);
+            }
         }
 
         strategy.recycler(ch);

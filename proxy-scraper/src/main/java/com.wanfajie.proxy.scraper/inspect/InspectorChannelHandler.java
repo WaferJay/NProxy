@@ -1,5 +1,6 @@
 package com.wanfajie.proxy.scraper.inspect;
 
+import com.wanfajie.netty.util.MyByteBufUtil;
 import com.wanfajie.proxy.HttpProxy;
 import com.wanfajie.proxy.client.HttpProxyInitializer;
 import com.wanfajie.proxy.scraper.inspect.httpbin.HttpbinInspectorChannelHandler;
@@ -8,6 +9,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -50,20 +52,23 @@ public abstract class InspectorChannelHandler extends ChannelDuplexHandler imple
                 recordReceived();
                 isAnonymous = isAnonymous(response);
             } catch (Exception e) {
-                logger.warn("Decode fail", e);
+                logger.info("Decode fail", e);
 
-                if (logger.isInfoEnabled()) {
-                    logger.info("Dump: {}", ByteBufUtil.prettyHexDump(response.content(), 0, 128));
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Dump: {}", MyByteBufUtil.safePrettyHexDump(response.content(), 0, 128));
                 }
-                return;
-            } finally {
-                response.content().readerIndex(readerIndex);
+
+                ReferenceCountUtil.release(msg);
+                throw e;
             }
 
+            response.content().readerIndex(readerIndex);
         }
 
         ctx.fireChannelRead(msg);
     }
+
+    // TODO: 验证Response内容的方法
 
     protected abstract boolean isAnonymous(FullHttpResponse response);
 

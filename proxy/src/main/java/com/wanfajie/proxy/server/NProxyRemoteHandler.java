@@ -1,8 +1,8 @@
 package com.wanfajie.proxy.server;
 
 import com.wanfajie.netty.util.ChannelUtils;
+import com.wanfajie.netty.util.MyByteBufUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -59,7 +59,7 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
             int size = byteBuf.readableBytes();
             logger.info("Received {} bytes: {} => {}", size, channel, inboundChannel);
             if (logger.isDebugEnabled()) {
-                String dump = ByteBufUtil.prettyHexDump(byteBuf, 0, 64);
+                String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
                 logger.debug("Dump {} => {}: {}", channel, inboundChannel, dump);
             }
         } else {

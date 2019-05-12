@@ -1,8 +1,8 @@
 package com.wanfajie.proxy.server;
 
 import com.wanfajie.netty.util.ChannelUtils;
+import com.wanfajie.netty.util.MyByteBufUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -38,8 +38,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
                 logger.debug("Acquired: {} => {}", inboundChannel, outboundChannel);
                 inboundChannel.read();
             } else {
-                // TODO: 失败重试
-                logger.error("Acquire fail [{}]", inboundChannel, f.cause());
+                logger.error("Acquire fail {}", inboundChannel, f.cause());
                 inboundChannel.close();
             }
         });
@@ -60,7 +59,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
                 int size = byteBuf.readableBytes();
                 logger.info("Sent {} bytes: {} => {}", size, inboundChannel, outboundChannel);
                 if (logger.isDebugEnabled()) {
-                    String dump = ByteBufUtil.prettyHexDump(byteBuf, 0, 64);
+                    String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
                     logger.debug("Dump {} => {}: {}", inboundChannel, outboundChannel, dump);
                 }
             } else {
@@ -71,11 +70,16 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
+        final Channel remoteChannel = outboundChannel;
+        if (remoteChannel == null) {
+            return;
+        }
+
         Promise<Void> promise = ctx.channel().eventLoop().newPromise();
         logger.debug("Closed connection: {}", inboundChannel);
-        linker.release(outboundChannel, promise).addListener(f -> {
+        linker.release(remoteChannel, promise).addListener(f -> {
             if (!f.isSuccess()) {
-                logger.error("Release fail: {}", outboundChannel);
+                logger.error("Release fail: {}", remoteChannel);
                 logger.error(f.cause());
             }
         });
