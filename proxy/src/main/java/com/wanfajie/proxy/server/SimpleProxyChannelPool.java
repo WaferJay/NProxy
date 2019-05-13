@@ -9,27 +9,28 @@ import io.netty.channel.pool.ChannelPoolHandler;
 import io.netty.channel.pool.SimpleChannelPool;
 
 import java.net.InetSocketAddress;
+import java.util.function.Supplier;
 
 public class SimpleProxyChannelPool extends SimpleChannelPool {
 
-    private final HttpProxySupplier supplier;
+    private final Supplier<HttpProxy> supplier;
 
-    public SimpleProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler) {
+    public SimpleProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler) {
         super(bootstrap, handler);
         this.supplier = supplier;
     }
 
-    public SimpleProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck) {
+    public SimpleProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck) {
         super(bootstrap, handler, healthCheck);
         this.supplier = supplier;
     }
 
-    public SimpleProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, boolean releaseHealthCheck) {
+    public SimpleProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, boolean releaseHealthCheck) {
         super(bootstrap, handler, healthCheck, releaseHealthCheck);
         this.supplier = supplier;
     }
 
-    public SimpleProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, boolean releaseHealthCheck, boolean lastRecentUsed) {
+    public SimpleProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, boolean releaseHealthCheck, boolean lastRecentUsed) {
         super(bootstrap, handler, healthCheck, releaseHealthCheck, lastRecentUsed);
         this.supplier = supplier;
     }

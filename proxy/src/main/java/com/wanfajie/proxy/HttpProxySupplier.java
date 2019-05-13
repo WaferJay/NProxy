@@ -1,6 +1,10 @@
 package com.wanfajie.proxy;
 
-import java.util.function.Supplier;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 
-public interface HttpProxySupplier extends Supplier<HttpProxy> {
+public interface HttpProxySupplier {
+    Future<HttpProxy> get(Promise<HttpProxy> promise);
+
+    Future<HttpProxy> get();
 }

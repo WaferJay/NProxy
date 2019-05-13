@@ -9,32 +9,33 @@ import io.netty.channel.pool.ChannelPoolHandler;
 import io.netty.channel.pool.FixedChannelPool;
 
 import java.net.InetSocketAddress;
+import java.util.function.Supplier;
 
 public class FixedProxyChannelPool extends FixedChannelPool {
 
-    private HttpProxySupplier supplier;
+    private Supplier<HttpProxy> supplier;
 
-    public FixedProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, int maxConnections) {
+    public FixedProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, int maxConnections) {
         super(bootstrap, handler, maxConnections);
         this.supplier = supplier;
     }
 
-    public FixedProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, int maxConnections, int maxPendingAcquires) {
+    public FixedProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, int maxConnections, int maxPendingAcquires) {
         super(bootstrap, handler, maxConnections, maxPendingAcquires);
         this.supplier = supplier;
     }
 
-    public FixedProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires) {
+    public FixedProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires) {
         super(bootstrap, handler, healthCheck, action, acquireTimeoutMillis, maxConnections, maxPendingAcquires);
         this.supplier = supplier;
     }
 
-    public FixedProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires, boolean releaseHealthCheck) {
+    public FixedProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires, boolean releaseHealthCheck) {
         super(bootstrap, handler, healthCheck, action, acquireTimeoutMillis, maxConnections, maxPendingAcquires, releaseHealthCheck);
         this.supplier = supplier;
     }
 
-    public FixedProxyChannelPool(Bootstrap bootstrap, HttpProxySupplier supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires, boolean releaseHealthCheck, boolean lastRecentUsed) {
+    public FixedProxyChannelPool(Bootstrap bootstrap, Supplier<HttpProxy> supplier, ChannelPoolHandler handler, ChannelHealthChecker healthCheck, AcquireTimeoutAction action, long acquireTimeoutMillis, int maxConnections, int maxPendingAcquires, boolean releaseHealthCheck, boolean lastRecentUsed) {
         super(bootstrap, handler, healthCheck, action, acquireTimeoutMillis, maxConnections, maxPendingAcquires, releaseHealthCheck, lastRecentUsed);
         this.supplier = supplier;
     }

@@ -2,46 +2,48 @@ package com.wanfajie.proxy.server;
 
 import com.wanfajie.netty.util.ChannelUtils;
 import com.wanfajie.proxy.HttpProxy;
+import com.wanfajie.proxy.HttpProxySupplier;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelOption;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
-
-import java.util.Deque;
 
 public class DefaultProxyLinker implements NProxyLinker {
 
     private static final AttributeKey<HttpProxy> PROXY_KEY = AttributeKey.newInstance("proxyServerKey");
 
-    private final Deque<HttpProxy> deque;
+    private final HttpProxySupplier supplier;
     private final Bootstrap bootstrap;
 
-    public DefaultProxyLinker(Bootstrap bootstrap, Deque<HttpProxy> deque) {
-        this.bootstrap = bootstrap.clone()
-                .option(ChannelOption.AUTO_READ, false);
-
-        this.deque = deque;
+    public DefaultProxyLinker(Bootstrap bootstrap, HttpProxySupplier supplier) {
+        this.bootstrap = bootstrap;
+        this.supplier = supplier;
     }
 
     @Override
     public Future<Channel> acquire(Channel localChannel, Promise<Channel> promise) {
-        HttpProxy proxy = pollProxy();
-        NProxyRemoteHandler handler = new NProxyRemoteHandler(localChannel);
+        supplier.get().addListener(f -> {
 
-        ChannelFuture future = bootstrap.clone()
-                .attr(PROXY_KEY, proxy)
-                .handler(handler)
-                .connect(proxy.getAddress());
-
-        future.addListener((ChannelFutureListener) f -> {
             if (f.isSuccess()) {
-                promise.setSuccess(f.channel());
-            } else {
-                promise.setFailure(f.cause());
+                HttpProxy proxy = (HttpProxy) f.get();
+
+                NProxyRemoteHandler handler = new NProxyRemoteHandler(localChannel);
+
+                ChannelFuture future = bootstrap.clone()
+                        .attr(PROXY_KEY, proxy)
+                        .handler(handler)
+                        .connect(proxy.getAddress());
+
+                future.addListener((ChannelFutureListener) ff -> {
+                    if (ff.isSuccess()) {
+                        promise.setSuccess(ff.channel());
+                    } else {
+                        promise.setFailure(ff.cause());
+                    }
+                });
             }
         });
 
@@ -61,24 +63,10 @@ public class DefaultProxyLinker implements NProxyLinker {
             return promise;
         }
 
-        if (offerProxy(proxy)) {
-            promise.setSuccess(null);
-        } else {
-            promise.setFailure(new IllegalStateException("offer fail"));
-        }
-        return promise;
-    }
-
-    private HttpProxy pollProxy() {
-        return deque.poll();
-    }
-
-    private boolean offerProxy(HttpProxy proxy) {
-        return deque.offer(proxy);
+        return promise.setSuccess(null);
     }
 
     @Override
     public void close() {
-        deque.clear();
     }
 }
