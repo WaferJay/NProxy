@@ -23,10 +23,6 @@ public interface Scraper<R> {
         return getClass().getSimpleName();
     }
 
-    default int schedule() {
-        return 180;
-    }
-
     default void onDownload(HttpRequestParamFlow request) {}
 
     default Document handleResponse(FullHttpResponse response, String url) throws IOException {

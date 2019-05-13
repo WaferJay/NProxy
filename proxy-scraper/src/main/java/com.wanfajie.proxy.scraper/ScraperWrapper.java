@@ -9,12 +9,14 @@ final class ScraperWrapper<R> {
 
     private final EventLoop eventLoop;
     private final Scraper<R> wrapped;
+    private final int seconds;
     private ScheduledFuture<?> scheduledFuture;
     private ScraperEngine<R> engine;
 
-    ScraperWrapper(DefaultScraperEngine<R> engine, Scraper<R> scraper, EventLoop eventLoop) {
+    ScraperWrapper(DefaultScraperEngine<R> engine, Scraper<R> scraper, int seconds, EventLoop eventLoop) {
         this.engine = engine;
         this.wrapped = scraper;
+        this.seconds = seconds;
         this.eventLoop = eventLoop;
     }
 
@@ -30,7 +32,7 @@ final class ScraperWrapper<R> {
                 if (engine.state() == ScraperEngine.State.RUNNING) {
                     engine.doTask(wrapped);
                 }
-            }, 0, wrapped.schedule(), TimeUnit.SECONDS);
+            }, 0, seconds, TimeUnit.SECONDS);
         }
 
         return scheduledFuture;

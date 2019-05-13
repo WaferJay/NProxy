@@ -51,10 +51,10 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
     }
 
     @Override
-    public DefaultScraperEngine<T> register(Scraper<T> scraper) {
+    public DefaultScraperEngine<T> register(Scraper<T> scraper, int seconds) {
         EventLoop eventExecutors = workers.next();
         System.out.println(eventExecutors);
-        tasks.add(new ScraperWrapper<>(this, scraper, eventExecutors));
+        tasks.add(new ScraperWrapper<>(this, scraper, seconds, eventExecutors));
         return this;
     }
 
