@@ -27,6 +27,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         inboundChannel = ctx.channel();
+        logger.info("client {} connected", inboundChannel);
         listener = new PipelineChannelFutureListener(ctx.channel(), logger);
 
         Promise<Channel> promise = ctx.channel().eventLoop().newPromise();
@@ -46,6 +47,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        logger.info("client {} disconnected", inboundChannel);
 
         if (outboundChannel == null) {
             throw new IllegalStateException();
@@ -60,7 +62,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
                 logger.info("Sent {} bytes: {} => {}", size, inboundChannel, outboundChannel);
                 if (logger.isDebugEnabled()) {
                     String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
-                    logger.debug("Dump {} => {}: {}", inboundChannel, outboundChannel, dump);
+                    logger.debug("Dump {} => {}:\n{}", inboundChannel, outboundChannel, dump);
                 }
             } else {
                 logger.info("Sent {}: {} => {}", msg, inboundChannel, outboundChannel);
@@ -81,6 +83,8 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
             if (!f.isSuccess()) {
                 logger.error("Release fail: {}", remoteChannel);
                 logger.error(f.cause());
+            } else {
+                logger.debug("Release success {}", remoteChannel);
             }
         });
     }

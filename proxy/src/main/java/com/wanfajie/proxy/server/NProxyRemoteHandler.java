@@ -26,7 +26,7 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
     NProxyRemoteHandler() {}
 
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+    public void channelRegistered(ChannelHandlerContext ctx) {
         context = ctx;
         ctx.fireChannelRegistered();
     }
@@ -34,6 +34,7 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         channel = ctx.channel();
+        logger.info("Connect remote {}", channel);
         listener = new PipelineChannelFutureListener(channel, logger);
         ctx.read();
         ctx.fireChannelActive();
@@ -41,11 +42,11 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
 
     void localChannel(final Channel localChannel) {
         if (context.channel().eventLoop().inEventLoop()) {
-            logger.debug("New channel: {}", localChannel);
+            logger.debug("Set new channel {} for {}", localChannel, channel);
             inboundChannel = localChannel;
         } else {
             context.executor().submit(() -> {
-                logger.debug("New channel: {}", localChannel);
+                logger.debug("Set new channel {} for {}", localChannel, channel);
                 inboundChannel = localChannel;
             });
         }
@@ -60,15 +61,16 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
             logger.info("Received {} bytes: {} => {}", size, channel, inboundChannel);
             if (logger.isDebugEnabled()) {
                 String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
-                logger.debug("Dump {} => {}: {}", channel, inboundChannel, dump);
+                logger.debug("Dump {} => {}:\n{}", channel, inboundChannel, dump);
             }
         } else {
-            logger.info("Received {}: {} => {}", msg, channel, inboundChannel);
+            logger.info("Received message {}: {} => {}", msg, channel, inboundChannel);
         }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
+        logger.info("Disconnect remote {}", channel);
         ChannelUtils.closeOnFlush(inboundChannel);
     }
 

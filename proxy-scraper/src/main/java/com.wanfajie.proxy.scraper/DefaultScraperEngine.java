@@ -121,6 +121,7 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
         logger.warn("Scrape fail [task: {}]", scraper.name(), throwable);
     }
 
+    @SuppressWarnings("unchecked")
     private void handleResultFuture(Scraper<T> scraper, Future<? super Iterator<T>> future) throws ExecutionException, InterruptedException {
 
         if (future.isSuccess()) {
@@ -130,7 +131,7 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
                     DefaultScraperEngine.this.consumer.accept(value);
                 }
 
-                logger.info("Scraped {}: {}", scraper.name(), value);
+                logger.debug("Scraped {}: {}", scraper.name(), value);
             }
         }
     }

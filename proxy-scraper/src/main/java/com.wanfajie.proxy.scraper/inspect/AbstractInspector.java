@@ -16,6 +16,8 @@ import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,6 +27,8 @@ import java.util.concurrent.ConcurrentMap;
 public abstract class AbstractInspector implements Inspector, HttpClientStrategyFactory {
 
     private static final AttributeKey<ReportGenerator> REPORT_GENERATOR_KEY = AttributeKey.newInstance("inspectReportGenerator");
+
+    private final InternalLogger logger = InternalLoggerFactory.getInstance(this.getClass());
 
     private final NttpClient client;
 
@@ -48,7 +52,11 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
         }
 
         tasks.put(proxy, promise);
-        promise.addListener(f -> tasks.remove(proxy));
+        promise.addListener(f -> {
+            tasks.remove(proxy);
+            Object result = f.isSuccess() ? f.get() : f.cause();
+            logger.debug("Complete {} inspection [{}]", proxy, result);
+        });
 
         client.get(inspectorURI())
                 .onError(promise::tryFailure)
@@ -149,6 +157,7 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
 
     @Override
     public void close() {
+        logger.debug("Closing inspector");
         closed = true;
         try {
             client.close();
@@ -166,5 +175,6 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
         }
 
         tasks.clear();
+        logger.debug("Closed inspector");
     }
 }
