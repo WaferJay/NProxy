@@ -34,7 +34,7 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         channel = ctx.channel();
-        logger.info("Connect remote {}", channel);
+        logger.info("Connected remote {}", channel);
         listener = new PipelineChannelFutureListener(channel, logger);
         ctx.read();
         ctx.fireChannelActive();
@@ -54,23 +54,28 @@ public class NProxyRemoteHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        inboundChannel.writeAndFlush(msg).addListener(listener);
-        if (msg instanceof ByteBuf) {
-            ByteBuf byteBuf = (ByteBuf) msg;
-            int size = byteBuf.readableBytes();
-            logger.info("Received {} bytes: {} => {}", size, channel, inboundChannel);
-            if (logger.isDebugEnabled()) {
-                String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
-                logger.debug("Dump {} => {}:\n{}", channel, inboundChannel, dump);
+
+        if (logger.isInfoEnabled()) {
+
+            if (msg instanceof ByteBuf) {
+                ByteBuf byteBuf = (ByteBuf) msg;
+                int size = byteBuf.readableBytes();
+                logger.info("Received {} bytes: {} => {}", size, channel, inboundChannel);
+                if (logger.isTraceEnabled()) {
+                    String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
+                    logger.trace("Dump {} => {}:\n{}", channel, inboundChannel, dump);
+                }
+            } else {
+                logger.info("Received message {}: {} => {}", msg, channel, inboundChannel);
             }
-        } else {
-            logger.info("Received message {}: {} => {}", msg, channel, inboundChannel);
         }
+
+        inboundChannel.writeAndFlush(msg).addListener(listener);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        logger.info("Disconnect remote {}", channel);
+        logger.info("Disconnected remote {}", channel);
         ChannelUtils.closeOnFlush(inboundChannel);
     }
 

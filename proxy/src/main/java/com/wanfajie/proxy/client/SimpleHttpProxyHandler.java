@@ -85,7 +85,7 @@ public class SimpleHttpProxyHandler extends ChannelOutboundHandlerAdapter {
                 String scheme = enableSsl ? "https://" : "http://";
                 String fullUrl = scheme + host + uri;
                 request.setUri(fullUrl);
-                logger.debug("Full URL: {}", uri, fullUrl);
+                logger.debug("Full URL: {}", fullUrl);
             } else {
                 logger.warn("Missing host header. [{}]", request);
             }

@@ -27,7 +27,7 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         inboundChannel = ctx.channel();
-        logger.info("client {} connected", inboundChannel);
+        logger.info("Client connected {}", inboundChannel);
         listener = new PipelineChannelFutureListener(ctx.channel(), logger);
 
         Promise<Channel> promise = ctx.channel().eventLoop().newPromise();
@@ -47,26 +47,41 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        logger.info("client {} disconnected", inboundChannel);
 
         if (outboundChannel == null) {
             throw new IllegalStateException();
         }
 
         if (outboundChannel.isActive()) {
-            outboundChannel.writeAndFlush(msg).addListener(listener);
 
-            if (msg instanceof ByteBuf) {
-                ByteBuf byteBuf = (ByteBuf) msg;
-                int size = byteBuf.readableBytes();
-                logger.info("Sent {} bytes: {} => {}", size, inboundChannel, outboundChannel);
-                if (logger.isDebugEnabled()) {
-                    String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
-                    logger.debug("Dump {} => {}:\n{}", inboundChannel, outboundChannel, dump);
+            if (logger.isInfoEnabled()) {
+
+                if (msg instanceof ByteBuf) {
+                    ByteBuf byteBuf = (ByteBuf) msg;
+                    int size = byteBuf.readableBytes();
+                    logger.info("Sent {} bytes: {} => {}", size, inboundChannel, outboundChannel);
+                    if (logger.isTraceEnabled()) {
+                        String dump = MyByteBufUtil.safePrettyHexDump(byteBuf, 0, 128);
+                        logger.trace("Dump {} => {}:\n{}", inboundChannel, outboundChannel, dump);
+                    }
+                } else {
+                    logger.info("Sent {}: {} => {}", msg, inboundChannel, outboundChannel);
                 }
-            } else {
-                logger.info("Sent {}: {} => {}", msg, inboundChannel, outboundChannel);
             }
+
+            outboundChannel.writeAndFlush(msg).addListener(listener);
+        } else {
+
+            if (logger.isErrorEnabled()) {
+                Object message = msg;
+                if (msg instanceof ByteBuf) {
+                    message = "\n" + MyByteBufUtil.safePrettyHexDump((ByteBuf) msg, 0, 128);
+                }
+
+                logger.error("Received data from [Client: {}]: {}", inboundChannel, message);
+            }
+
+            throw new IllegalStateException("Received data at the wrong time.");
         }
     }
 
@@ -78,11 +93,10 @@ public class NProxyLocalHandler extends ChannelInboundHandlerAdapter {
         }
 
         Promise<Void> promise = ctx.channel().eventLoop().newPromise();
-        logger.debug("Closed connection: {}", inboundChannel);
+        logger.info("Closed connection: {}", inboundChannel);
         linker.release(remoteChannel, promise).addListener(f -> {
             if (!f.isSuccess()) {
-                logger.error("Release fail: {}", remoteChannel);
-                logger.error(f.cause());
+                logger.error("Release fail: {}", remoteChannel, f.cause());
             } else {
                 logger.debug("Release success {}", remoteChannel);
             }
