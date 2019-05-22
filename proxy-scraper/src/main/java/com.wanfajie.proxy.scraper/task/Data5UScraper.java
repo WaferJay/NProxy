@@ -17,13 +17,7 @@ public class Data5UScraper implements Scraper<HttpProxy> {
 
     private static final List<URI> URLS;
     static {
-        List<URI> urlsList= new ArrayList<>(3);
-        Collections.addAll(urlsList,
-                URI.create("http://www.data5u.com/free/index.html"),
-                URI.create("http://www.data5u.com/free/gngn/index.shtml"),
-                URI.create("http://www.data5u.com/free/gnpt/index.shtml"));
-
-        URLS = Collections.unmodifiableList(urlsList);
+        URLS = Collections.singletonList(URI.create("http://www.data5u.com/"));
     }
 
     @Override

@@ -6,7 +6,6 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -53,7 +52,6 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
     @Override
     public DefaultScraperEngine<T> register(Scraper<T> scraper, int seconds) {
         EventLoop eventExecutors = workers.next();
-        System.out.println(eventExecutors);
         tasks.add(new ScraperWrapper<>(this, scraper, seconds, eventExecutors));
         return this;
     }

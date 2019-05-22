@@ -54,8 +54,14 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
         tasks.put(proxy, promise);
         promise.addListener(f -> {
             tasks.remove(proxy);
-            Object result = f.isSuccess() ? f.get() : f.cause();
-            logger.debug("Complete {} inspection [{}]", proxy, result);
+            if (f.isSuccess()) {
+                logger.debug("Complete inspection {} [{}]", proxy, f.get());
+            } else {
+                logger.debug("Inspection failure {}", proxy);
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Inspection error processing {}", proxy, f.cause());
+                }
+            }
         });
 
         client.get(inspectorURI())
