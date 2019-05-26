@@ -3,6 +3,7 @@ package com.wanfajie.proxy.scraper;
 import com.wanfajie.nttpclient.HttpRequestParamFlow;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.util.CharsetUtil;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -11,6 +12,7 @@ import org.jsoup.nodes.Element;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.List;
 
@@ -18,6 +20,18 @@ public interface Scraper<R> {
     List<URI> urls();
     Iterator<R> scrape(Document doc);
     R parseOne(Element row);
+
+    default int delay() {
+        return 600;
+    }
+
+    default Charset charset() {
+        return CharsetUtil.UTF_8;
+    }
+
+    default int initialDelay() {
+        return 0;
+    }
 
     default String name() {
         return getClass().getSimpleName();
@@ -32,6 +46,6 @@ public interface Scraper<R> {
             throw new HttpStatusException(phrase, code, url);
         }
         InputStream is = new ByteBufInputStream(response.content());
-        return Jsoup.parse(is, "UTF-8", "");
+        return Jsoup.parse(is, charset().toString(), "");
     }
 }

@@ -12,8 +12,6 @@ import com.wanfajie.proxy.scraper.DefaultScraperEngine;
 import com.wanfajie.proxy.scraper.ScraperEngine;
 import com.wanfajie.proxy.scraper.inspect.InspectorBridge;
 import com.wanfajie.proxy.scraper.inspect.httpbin.HttpbinInspector;
-import com.wanfajie.proxy.scraper.task.Data5UScraper;
-import com.wanfajie.proxy.scraper.task.XiciScraper;
 import com.wanfajie.proxy.server.DefaultProxyLinker;
 import com.wanfajie.proxy.server.NProxyInitializer;
 import com.wanfajie.proxy.server.NProxyLinker;
@@ -34,6 +32,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -84,9 +83,10 @@ public class Main {
         HttpbinInspector inspector = new HttpbinInspector(builder);
         Consumer<HttpProxy> proxyConsumer = pool::add;
 
-        DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<>(worker, new InspectorBridge(inspector, proxyConsumer));
-        engine.register(new Data5UScraper(), scraParams.periodic());
-        engine.register(new XiciScraper(), scraParams.periodic());
+        URL defaultScrapersConfig = Main.class.getResource("/scrapers.properties");
+
+        DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<HttpProxy>(worker, new InspectorBridge(inspector, proxyConsumer)) {};
+        engine.loadScrapers(defaultScrapersConfig);
         return engine;
     }
 
@@ -130,6 +130,8 @@ public class Main {
 
         ProxyPool proxyPool = new MemProxyPool(worker.next());
 
+        ScraperEngine<HttpProxy> engine = initScraper(params.scraParams, proxyPool, worker);
+
         Bootstrap bootstrap = new Bootstrap()
                 .group(worker)
                 .channel(NioSocketChannel.class);
@@ -157,7 +159,6 @@ public class Main {
             System.exit(-1);
         }
 
-        ScraperEngine<HttpProxy> engine = initScraper(params.scraParams, proxyPool, worker);
         engine.start();
 
         try {

@@ -2,6 +2,9 @@ package com.wanfajie.proxy.scraper;
 
 import com.wanfajie.nttpclient.HttpRequestFlow;
 import com.wanfajie.nttpclient.NttpClient;
+import com.wanfajie.proxy.HttpProxy;
+import com.wanfajie.proxy.scraper.task.ScraperFactory;
+import com.wanfajie.proxy.scraper.task.ScraperFactoryManager;
 import io.netty.channel.EventLoop;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -11,17 +14,15 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.jsoup.nodes.Document;
 
-import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.net.URL;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
-public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, AutoCloseable {
+public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
 
     private final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultScraperEngine.class);
 
@@ -33,10 +34,16 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
     private NttpClient httpclient;
 
     private List<ScraperWrapper<T>> tasks = new ArrayList<>();
+    private List<URL> configList = new LinkedList<>();
+
+    private Class<?> productClass;
 
     public DefaultScraperEngine(NioEventLoopGroup workers, Consumer<T> consumer) {
         this.workers = workers;
         this.consumer = consumer;
+
+        ParameterizedType type = (ParameterizedType) getClass().getGenericSuperclass();
+        productClass = (Class<?>) type.getActualTypeArguments()[0];
 
         buildHttpClient();
     }
@@ -81,13 +88,29 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
 
     @Override
     public void start() {
-        if (state == State.READY) {
-            tasks = Collections.unmodifiableList(tasks);
-        } else {
+        if (state != State.READY) {
             throw new AlreadyStartedException();
         }
 
+        if (!configList.isEmpty()) {
+            URL first = configList.get(0);
+            ScraperFactory factory = ScraperFactoryManager.getFactory(productClass, first);
+            List<Scraper<T>> scrapers;
+            try {
+                List<URL> factories = configList.subList(1, configList.size());
+                scrapers = factory.create(first, factories.toArray(new URL[0]));
+            } catch (IOException e) {
+                throw new IllegalArgumentException(configList.toString());
+            }
+
+            for (Scraper<T> scraper : scrapers) {
+                register(scraper, 600);
+            }
+        }
+
+        tasks = Collections.unmodifiableList(tasks);
         state = State.RUNNING;
+
         for (ScraperWrapper<T> task : tasks) {
             task.schedule();
         }
@@ -153,14 +176,18 @@ public class DefaultScraperEngine<T> implements ScraperEngine<T>, Closeable, Aut
         return wrapper.eventLoop();
     }
 
-    @Override
-    public void close() {
-        if (State.RUNNING == state) {
-            stop();
-        }
-    }
-
     public State state() {
         return state;
+    }
+
+    @Override
+    public DefaultScraperEngine<T> loadScrapers(URL url) {
+        if (state == State.READY) {
+            configList.add(url);
+        } else {
+            throw new IllegalStateException(state.toString());
+        }
+
+        return this;
     }
 }
