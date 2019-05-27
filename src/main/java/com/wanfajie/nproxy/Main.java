@@ -31,7 +31,9 @@ import org.apache.logging.log4j.core.config.Configurator;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +76,9 @@ public class Main {
         }
     }
 
-    private static ScraperEngine<HttpProxy> initScraper(ScraperParameter scraParams, ProxyPool pool, NioEventLoopGroup worker) {
+    private static ScraperEngine<HttpProxy> initScraper(ScraperParameter scraParams, ProxyPool pool, NioEventLoopGroup worker)
+            throws FileNotFoundException, MalformedURLException {
+
         NttpClient.Builder builder = new NttpClient.Builder()
                 .group(worker)
                 .channel(NioSocketChannel.class)
@@ -83,10 +87,23 @@ public class Main {
         HttpbinInspector inspector = new HttpbinInspector(builder);
         Consumer<HttpProxy> proxyConsumer = pool::add;
 
-        URL defaultScrapersConfig = Main.class.getResource("/scrapers.properties");
-
         DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<HttpProxy>(worker, new InspectorBridge(inspector, proxyConsumer)) {};
-        engine.loadScrapers(defaultScrapersConfig);
+
+        if (!scraParams.isDisableDefault()) {
+            URL defaultScrapersConfig = Main.class.getResource("/scrapers.properties");
+            engine.loadScrapers(defaultScrapersConfig);
+        }
+
+        if (scraParams.scrapersConfig() != null) {
+            File file = scraParams.scrapersConfig();
+
+            if (!file.exists() || !file.isFile()) {
+                throw new FileNotFoundException(file.toString());
+            }
+
+            engine.loadScrapers(file.toURI().toURL());
+        }
+
         return engine;
     }
 
@@ -113,7 +130,7 @@ public class Main {
         closeFutures.add(future);
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
 
         FullParameters params = FullParameters.parse(Main.class, args);
         if (params.help()) {
@@ -163,10 +180,16 @@ public class Main {
 
         try {
             worker.next().newPromise().sync();
+        } catch (InterruptedException ignored) {
+
         } finally {
-            engine.stop();
-            closeProxyServerChannels();
-            worker.shutdownGracefully().awaitUninterruptibly();
+
+            try {
+                engine.stop();
+                closeProxyServerChannels();
+            } finally {
+                worker.shutdownGracefully().awaitUninterruptibly();
+            }
         }
     }
 }

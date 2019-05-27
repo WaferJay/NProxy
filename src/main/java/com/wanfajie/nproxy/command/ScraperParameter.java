@@ -1,27 +1,32 @@
 package com.wanfajie.nproxy.command;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.FileConverter;
 
+import java.io.File;
+
+@Parameters(separators = "=")
 public class ScraperParameter {
 
-    @Parameter(names = {"--scraper-periodic"})
-    private int periodic = 300;
-
     @Parameter(names = {"--scraper-connect-timeout"})
-    private int connectTimeout;
+    private int connectTimeout = 180;
 
-    @Parameter(names = {"--scraper-timeout"})
-    private int readTimeout;
+    @Parameter(names = {"--scraper-config"}, converter = FileConverter.class)
+    private File scrapersConfig;
 
-    public int periodic() {
-        return periodic;
-    }
+    @Parameter(names = {"--disable-default-scrapers"}, description = "disable the default scrapers configuration")
+    private boolean disableDefault = false;
 
     public int connectTimeout() {
         return connectTimeout;
     }
 
-    public int readTimeout() {
-        return readTimeout;
+    public File scrapersConfig() {
+        return scrapersConfig;
+    }
+
+    public boolean isDisableDefault() {
+        return disableDefault;
     }
 }

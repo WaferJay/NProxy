@@ -22,6 +22,7 @@ public final class FullParameters {
                 .addObject(this)
                 .addObject(logParams)
                 .addObject(servParams)
+                .addObject(scraParams)
                 .build();
     }
 
