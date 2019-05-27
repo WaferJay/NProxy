@@ -122,6 +122,12 @@ public class PropsHttpProxyScraperFactory extends AbstractHttpProxyScraperFactor
             case "charset":
                 meta.charset = Charset.forName(value);
                 break;
+            case "parse.host.converter":
+                meta.hostConverter = value;
+                break;
+            case "parse.port.converter":
+                meta.portConverter = value;
+                break;
             case "parse.type.converter":
                 meta.typeConverter = value;
                 break;

@@ -12,7 +12,6 @@ import org.jsoup.select.Elements;
 
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.text.ParseException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -77,19 +76,15 @@ public class HttpProxyScraperImpl implements Scraper<HttpProxy> {
         Elements portElems = checkNotEmpty(row.select(portSelect));
         Elements typeElems = checkNotEmpty(row.select(typeSelect));
 
-        String host;
-        int port;
-        HttpProxy.Type type;
-
         try {
-            host = hostConverter.convert(hostElems);
-            port = portConverter.convert(portElems);
-            type = typeConverter.convert(typeElems);
+            String host = hostConverter.convert(hostElems);
+            int port = portConverter.convert(portElems);
+            HttpProxy.Type type = typeConverter.convert(typeElems);
+
+            return new HttpProxy(type, host, port);
         } catch (Exception e) {
             throw new IllegalStateException("Conversion failed [Scraper: " + name + "]", e);
         }
-
-        return new HttpProxy(type, host, port);
     }
 
     private <T extends Collection> T checkNotEmpty(T collection) {
