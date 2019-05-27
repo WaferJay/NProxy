@@ -1,6 +1,7 @@
 package com.wanfajie.proxy.scraper.task;
 
 import com.wanfajie.proxy.HttpProxy;
+import com.wanfajie.proxy.scraper.task.converter.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.StringUtil;
@@ -44,6 +45,20 @@ abstract class AbstractHttpProxyScraperFactory implements ScraperFactory<HttpPro
         ObjectUtil.checkPositive(meta.delay, name + ".schedule.delay");
         ObjectUtil.checkPositiveOrZero(meta.initalDelay, name + ".schedule.initialDelay");
 
+        HostConverter hostConverter;
+        if (meta.hostConverter != null) {
+            hostConverter = loadConverter(meta.hostConverter, name);
+        } else {
+            hostConverter = new DefaultHostConverter();
+        }
+
+        PortConverter portConverter;
+        if (meta.portConverter != null) {
+            portConverter = loadConverter(meta.portConverter, name);
+        } else {
+            portConverter = new DefaultPortConverter();
+        }
+
         TypeConverter typeConverter;
         if (meta.typeConverter != null) {
             typeConverter = loadConverter(meta.typeConverter, name);
@@ -53,7 +68,8 @@ abstract class AbstractHttpProxyScraperFactory implements ScraperFactory<HttpPro
 
         return new HttpProxyScraperImpl(meta.name, meta.urls, meta.rowsSelect,
                 meta.hostSelect, meta.portSelect, meta.typeSelect, meta.delay,
-                meta.initalDelay, meta.charset, typeConverter);
+                meta.initalDelay, meta.charset, hostConverter, portConverter,
+                typeConverter);
     }
 
     static final class ScraperMeta {
@@ -69,6 +85,8 @@ abstract class AbstractHttpProxyScraperFactory implements ScraperFactory<HttpPro
         String portSelect;
         String typeSelect;
 
+        String hostConverter;
+        String portConverter;
         String typeConverter;
 
         ScraperMeta(String name) {

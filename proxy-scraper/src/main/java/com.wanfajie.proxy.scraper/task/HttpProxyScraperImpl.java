@@ -3,12 +3,16 @@ package com.wanfajie.proxy.scraper.task;
 import com.wanfajie.proxy.HttpProxy;
 import com.wanfajie.proxy.scraper.ElementIterator;
 import com.wanfajie.proxy.scraper.Scraper;
+import com.wanfajie.proxy.scraper.task.converter.HostConverter;
+import com.wanfajie.proxy.scraper.task.converter.PortConverter;
+import com.wanfajie.proxy.scraper.task.converter.TypeConverter;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.text.ParseException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -23,15 +27,19 @@ public class HttpProxyScraperImpl implements Scraper<HttpProxy> {
     private final String portSelect;
     private final String typeSelect;
 
-    private int delay;
-    private int initialDelay;
+    private final int delay;
+    private final int initialDelay;
 
-    private Charset charset;
-    private TypeConverter typeConverter;
+    private final Charset charset;
+
+    private final HostConverter hostConverter;
+    private final PortConverter portConverter;
+    private final TypeConverter typeConverter;
 
     HttpProxyScraperImpl(String name, List<URI> urls, String rowsSelect,
                          String hostSelect, String portSelect, String typeSelect,
                          int delay, int initialDelay, Charset charset,
+                         HostConverter hostConvert, PortConverter portConverter,
                          TypeConverter typeConverter) {
 
         this.name = name;
@@ -46,6 +54,9 @@ public class HttpProxyScraperImpl implements Scraper<HttpProxy> {
         this.initialDelay = initialDelay;
 
         this.charset = charset;
+
+        this.hostConverter = hostConvert;
+        this.portConverter = portConverter;
         this.typeConverter = typeConverter;
     }
 
@@ -66,12 +77,17 @@ public class HttpProxyScraperImpl implements Scraper<HttpProxy> {
         Elements portElems = checkNotEmpty(row.select(portSelect));
         Elements typeElems = checkNotEmpty(row.select(typeSelect));
 
-        String host = parseText(hostElems);
-        String portStr = parseText(portElems);
-        int port = Integer.parseInt(portStr);
+        String host;
+        int port;
+        HttpProxy.Type type;
 
-        String typeStr = parseText(typeElems).toUpperCase();
-        HttpProxy.Type type = typeConverter.convert(typeStr);
+        try {
+            host = hostConverter.convert(hostElems);
+            port = portConverter.convert(portElems);
+            type = typeConverter.convert(typeElems);
+        } catch (Exception e) {
+            throw new IllegalStateException("Conversion failed [Scraper: " + name + "]", e);
+        }
 
         return new HttpProxy(type, host, port);
     }
@@ -82,20 +98,6 @@ public class HttpProxyScraperImpl implements Scraper<HttpProxy> {
         }
 
         return collection;
-    }
-
-    private static String parseText(Elements elements) {
-        if (elements.size() == 1) {
-            return elements.get(0).text().trim();
-        }
-
-        StringBuilder sb = new StringBuilder(16);
-        for (Element each : elements) {
-            String part = each.text().trim();
-            sb.append(part);
-        }
-
-        return sb.toString();
     }
 
     @Override

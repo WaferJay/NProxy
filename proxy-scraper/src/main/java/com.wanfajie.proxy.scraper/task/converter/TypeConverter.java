@@ -1,4 +1,4 @@
-package com.wanfajie.proxy.scraper.task;
+package com.wanfajie.proxy.scraper.task.converter;
 
 import com.wanfajie.proxy.HttpProxy;
 

@@ -2,7 +2,6 @@ package com.wanfajie.proxy.scraper;
 
 import com.wanfajie.nttpclient.HttpRequestFlow;
 import com.wanfajie.nttpclient.NttpClient;
-import com.wanfajie.proxy.HttpProxy;
 import com.wanfajie.proxy.scraper.task.ScraperFactory;
 import com.wanfajie.proxy.scraper.task.ScraperFactoryManager;
 import io.netty.channel.EventLoop;
@@ -152,7 +151,7 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
                     DefaultScraperEngine.this.consumer.accept(value);
                 }
 
-                logger.debug("Scraped {}: {}", scraper.name(), value);
+                logger.debug("Scraped from {}: {}", scraper.name(), value);
             }
         }
     }
