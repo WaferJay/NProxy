@@ -10,6 +10,7 @@ import com.wanfajie.nttpclient.NttpClient;
 import com.wanfajie.proxy.HttpProxy;
 import com.wanfajie.proxy.scraper.DefaultScraperEngine;
 import com.wanfajie.proxy.scraper.ScraperEngine;
+import com.wanfajie.proxy.scraper.inspect.Inspector;
 import com.wanfajie.proxy.scraper.inspect.InspectorBridge;
 import com.wanfajie.proxy.scraper.inspect.httpbin.HttpbinInspector;
 import com.wanfajie.proxy.server.DefaultProxyLinker;
@@ -23,11 +24,13 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.concurrent.Promise;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.ConfigurationSource;
 import org.apache.logging.log4j.core.config.Configurator;
+import sun.misc.Signal;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,8 +44,18 @@ import java.util.function.Consumer;
 
 public class Main {
 
-    private static InternalLogger logger = InternalLoggerFactory.getInstance(Main.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(Main.class);
     private static final List<ChannelFuture> closeFutures = new ArrayList<>(3);
+
+    private static NioEventLoopGroup workers;
+    private static ScraperEngine<HttpProxy> scraperEngine;
+    private static Inspector inspector;
+    private static ProxyPool proxyPool;
+
+    private static void initEventLoopGroup() {
+        int poolSize = (int) (Runtime.getRuntime().availableProcessors() * 1.5);
+        workers = new NioEventLoopGroup(poolSize);
+    }
 
     private static void initLogging(LogParameter parameter) {
         File logConfigFile = parameter.getLogConfigFile();
@@ -70,24 +83,29 @@ public class Main {
         for (ChannelFuture future : closeFutures) {
             try {
                 future.channel().close().sync();
+                logger.info("closed channel {}", future.channel());
             } catch (Exception e) {
                 logger.error("close channel {} fail", future.channel(), e);
             }
         }
     }
 
-    private static ScraperEngine<HttpProxy> initScraper(ScraperParameter scraParams, ProxyPool pool, NioEventLoopGroup worker)
-            throws FileNotFoundException, MalformedURLException {
+    private static void initInspector(ScraperParameter scraParams) {
 
         NttpClient.Builder builder = new NttpClient.Builder()
-                .group(worker)
+                .group(workers)
                 .channel(NioSocketChannel.class)
                 .connectTimeout(scraParams.connectTimeout());
 
-        HttpbinInspector inspector = new HttpbinInspector(builder);
-        Consumer<HttpProxy> proxyConsumer = pool::add;
+        inspector = new HttpbinInspector(builder);
+    }
 
-        DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<HttpProxy>(worker, new InspectorBridge(inspector, proxyConsumer)) {};
+    private static void initScraper(ScraperParameter scraParams)
+            throws FileNotFoundException, MalformedURLException {
+
+        Consumer<HttpProxy> proxyConsumer = proxyPool::add;
+
+        DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<HttpProxy>(workers, new InspectorBridge(inspector, proxyConsumer)) {};
 
         if (!scraParams.isDisableDefault()) {
             URL defaultScrapersConfig = Main.class.getResource("/scrapers.properties");
@@ -104,7 +122,11 @@ public class Main {
             engine.loadScrapers(file.toURI().toURL());
         }
 
-        return engine;
+        scraperEngine = engine;
+    }
+
+    private static void initProxyPool() {
+        proxyPool = new MemProxyPool(workers.next());
     }
 
     private static boolean ensureBindProxyServer() {
@@ -115,7 +137,6 @@ public class Main {
                 logger.info("listening {}", future.channel().localAddress());
             } catch (Exception e) {
                 logger.error("listening to {} failed", future.channel().localAddress(), e);
-                closeProxyServerChannels();
                 return false;
             }
         }
@@ -130,31 +151,14 @@ public class Main {
         closeFutures.add(future);
     }
 
-    public static void main(String[] args) throws Exception {
-
-        FullParameters params = FullParameters.parse(Main.class, args);
-        if (params.help()) {
-            params.usage();
-            System.exit(0);
-        }
-
-        initLogging(params.logParams);
-
-        ProxyServerParameter servParams = params.servParams;
-
-        int poolSize = (int) (Runtime.getRuntime().availableProcessors() * 1.5);
-        NioEventLoopGroup worker = new NioEventLoopGroup(poolSize);
-
-        ProxyPool proxyPool = new MemProxyPool(worker.next());
-
-        ScraperEngine<HttpProxy> engine = initScraper(params.scraParams, proxyPool, worker);
+    private static boolean listenProxyPorts(ProxyServerParameter servParams) {
 
         Bootstrap bootstrap = new Bootstrap()
-                .group(worker)
+                .group(workers)
                 .channel(NioSocketChannel.class);
 
         ServerBootstrap sb = new ServerBootstrap()
-                .group(worker)
+                .group(workers)
                 .channel(NioServerSocketChannel.class)
                 .childOption(ChannelOption.AUTO_READ, false)
                 .childOption(ChannelOption.SO_LINGER, 0);
@@ -172,24 +176,73 @@ public class Main {
             openProxyServer(sb, bootstrap, proxyPool, host, servParams.socksProxyPort());
         }
 
-        if (!ensureBindProxyServer()) {
-            System.exit(-1);
+        return ensureBindProxyServer();
+    }
+
+    private static void waitingToExit() {
+        Promise<Signal> signalPromise = workers.next().newPromise();
+        Signal.handle(new Signal("INT"), signal -> {
+            logger.debug("Hitting {}({})", signal, signal.getNumber());
+            if (!signalPromise.trySuccess(signal)) {
+                logger.debug("");
+                System.exit(10);
+            }
+            logger.debug("Closing program...");
+        });
+
+        signalPromise.awaitUninterruptibly();
+        closeAll();
+    }
+
+    private static void closeAll() {
+        try {
+            if (scraperEngine != null) {
+                logger.debug("Closing scraper engine...");
+                scraperEngine.stop();
+            }
+
+            if (inspector != null) {
+                logger.debug("Closing proxy inspector...");
+                inspector.close();
+            }
+
+            closeProxyServerChannels();
+        } finally {
+            workers.shutdownGracefully().awaitUninterruptibly();
+        }
+    }
+
+    public static void main(String[] args) {
+
+        FullParameters params = FullParameters.parse(Main.class, args);
+        if (params.help()) {
+            params.usage();
+            System.exit(0);
         }
 
-        engine.start();
+        initLogging(params.logParams);
+
+        initEventLoopGroup();
+
+        initProxyPool();
+        initInspector(params.scraParams);
 
         try {
-            worker.next().newPromise().sync();
-        } catch (InterruptedException ignored) {
+            initScraper(params.scraParams);
+        } catch (Exception e) {
+            logger.error("Scraper engine initialization failed. A exception was thrown", e);
 
-        } finally {
-
-            try {
-                engine.stop();
-                closeProxyServerChannels();
-            } finally {
-                worker.shutdownGracefully().awaitUninterruptibly();
-            }
+            closeAll();
+            System.exit(1);
         }
+
+        if (!listenProxyPorts(params.servParams)) {
+            closeAll();
+            System.exit(2);
+        }
+
+        scraperEngine.start();
+
+        waitingToExit();
     }
 }
