@@ -14,7 +14,7 @@ public final class FullParameters {
     public final ProxyServerParameter servParams = new ProxyServerParameter();
     public final ScraperParameter scraParams = new ScraperParameter();
 
-    @Parameter(names = {"--help", "-h"}, description = "print this help message and exit")
+    @Parameter(names = {"--help", "-h"}, description = "print this help message and exit", order = 100)
     private boolean help;
 
     {

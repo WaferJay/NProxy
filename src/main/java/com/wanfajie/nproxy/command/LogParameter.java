@@ -11,10 +11,10 @@ import java.io.File;
 @Parameters(separators = "=")
 public final class LogParameter {
 
-    @Parameter(names = "--loglevel", converter = LogLevelConverter.class, description = "logging level")
+    @Parameter(names = "--loglevel", converter = LogLevelConverter.class, order = 10, description = "logging level")
     private Level logLevel = null;
 
-    @Parameter(names = "--logconf", converter = FileConverter.class)
+    @Parameter(names = "--logconf", converter = FileConverter.class, order = 10)
     private File logConfigFile = null;
 
     public Level getLogLevel() {
