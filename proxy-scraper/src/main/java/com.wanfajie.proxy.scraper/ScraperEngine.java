@@ -4,6 +4,8 @@ import java.net.URL;
 
 public interface ScraperEngine<R> {
 
+    DefaultScraperEngine<R> register(Scraper<R> scraper);
+
     void start();
     void stop();
 
@@ -11,8 +13,6 @@ public interface ScraperEngine<R> {
     State state();
 
     ScraperEngine<R> loadScrapers(URL url);
-
-    void doTask(Scraper<R> scraper);
 
     enum State {
         READY, RUNNING, FINISHED

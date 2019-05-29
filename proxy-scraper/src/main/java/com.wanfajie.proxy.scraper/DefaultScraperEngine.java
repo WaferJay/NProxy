@@ -9,6 +9,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.ScheduledFuture;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.jsoup.nodes.Document;
@@ -19,11 +20,12 @@ import java.net.URI;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
 
-    private final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultScraperEngine.class);
+    private final InternalLogger logger = InternalLoggerFactory.getInstance(this.getClass());
 
     private final NioEventLoopGroup workers;
     private final Consumer<T> consumer;
@@ -32,7 +34,7 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
 
     private NttpClient httpclient;
 
-    private List<ScraperWrapper<T>> tasks = new ArrayList<>();
+    private List<ScraperWrapper> tasks = new ArrayList<>();
     private List<URL> configList = new LinkedList<>();
 
     private Class<?> productClass;
@@ -58,17 +60,23 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
     @Override
     public DefaultScraperEngine<T> register(Scraper<T> scraper, int seconds) {
         EventLoop eventExecutors = workers.next();
-        tasks.add(new ScraperWrapper<>(this, scraper, seconds, eventExecutors));
+        tasks.add(new ScraperWrapper(scraper, eventExecutors, seconds));
         return this;
     }
 
     @Override
-    public void doTask(Scraper<T> scraper) {
+    public DefaultScraperEngine<T> register(Scraper<T> scraper) {
+        return register(scraper, 0);
+    }
+
+    private void doTask(Scraper<T> scraper) {
 
         for (URI url : scraper.urls()) {
 
             HttpRequestFlow flow = httpclient.get(url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101 Firefox/60.0")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101 Firefox/60.0");
+
+            handleRequest(flow)
                     .onError(e -> handleException(scraper, e))
                     .onResponse(resp -> {
                         handleResponse(scraper, url, resp)
@@ -83,6 +91,10 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
                 handleException(scraper, e);
             }
         }
+    }
+
+    protected HttpRequestFlow handleRequest(HttpRequestFlow flow) {
+        return flow;
     }
 
     @Override
@@ -110,7 +122,7 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
         tasks = Collections.unmodifiableList(tasks);
         state = State.RUNNING;
 
-        for (ScraperWrapper<T> task : tasks) {
+        for (ScraperWrapper task : tasks) {
             task.schedule();
         }
     }
@@ -163,7 +175,7 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
     }
 
     private EventLoop getScraperWrapper(Scraper<T> scraper) {
-        ScraperWrapper<T> wrapper = tasks.stream().filter(e -> e.scraper() == scraper)
+        ScraperWrapper wrapper = tasks.stream().filter(e -> e.scraper() == scraper)
                 .findFirst()
                 .orElse(null);
 
@@ -188,5 +200,48 @@ public abstract class DefaultScraperEngine<T> implements ScraperEngine<T> {
         }
 
         return this;
+    }
+
+    private final class ScraperWrapper {
+
+        private final EventLoop eventLoop;
+        private final Scraper<T> wrapped;
+        private final int delay;
+        private ScheduledFuture<?> scheduledFuture;
+
+        ScraperWrapper(Scraper<T> scraper, EventLoop eventLoop, int delay) {
+            this.wrapped = scraper;
+            this.eventLoop = eventLoop;
+            this.delay = delay;
+        }
+
+        EventLoop eventLoop() {
+            return eventLoop;
+        }
+
+        ScheduledFuture<?> schedule() {
+
+            if (scheduledFuture == null) {
+
+                int delay = this.delay;
+                if (delay == 0) {
+                    delay = wrapped.delay();
+                }
+
+                scheduledFuture = eventLoop.scheduleWithFixedDelay(() -> {
+
+                    if (state() == ScraperEngine.State.RUNNING) {
+                        doTask(wrapped);
+                    }
+
+                }, wrapped.initialDelay(), delay, TimeUnit.SECONDS);
+            }
+
+            return scheduledFuture;
+        }
+
+        Scraper<T> scraper() {
+            return wrapped;
+        }
     }
 }
