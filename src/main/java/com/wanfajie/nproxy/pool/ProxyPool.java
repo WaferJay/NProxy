@@ -56,9 +56,14 @@ public interface ProxyPool {
 
             proxyPool.size(type).addListener(f -> {
                 int size = (Integer) f.get();
-                int i = index.getAndIncrement();
 
-                proxyPool.get(i % size, type, promise);
+                if (size == 0) {
+                    Exception e = new IndexOutOfBoundsException("Index: " + index.get() + ", Size: " + size);
+                    promise.setFailure(e);
+                } else {
+                    int i = index.getAndIncrement();
+                    proxyPool.get(i % size, type, promise);
+                }
             });
 
             return promise;

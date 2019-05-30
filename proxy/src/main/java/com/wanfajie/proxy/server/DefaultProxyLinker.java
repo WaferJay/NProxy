@@ -44,6 +44,8 @@ public class DefaultProxyLinker implements NProxyLinker {
                         promise.setFailure(ff.cause());
                     }
                 });
+            } else {
+                promise.setFailure(f.cause());
             }
         });
 
