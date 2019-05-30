@@ -2,6 +2,7 @@ package com.wanfajie.nproxy.command;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.UnixStyleUsageFormatter;
 
 import java.io.File;
 import java.net.URL;
@@ -14,7 +15,7 @@ public final class FullParameters {
     public final ProxyServerParameter servParams = new ProxyServerParameter();
     public final ScraperParameter scraParams = new ScraperParameter();
 
-    @Parameter(names = {"--help", "-h"}, description = "print this help message and exit", order = 100)
+    @Parameter(names = {"--help", "-h"}, help = true, description = "print this help message and exit", order = 100)
     private boolean help;
 
     {
@@ -24,6 +25,8 @@ public final class FullParameters {
                 .addObject(servParams)
                 .addObject(scraParams)
                 .build();
+
+        commander.setUsageFormatter(new UnixStyleUsageFormatter(commander));
     }
 
     private FullParameters(String progressName, String... args) {
