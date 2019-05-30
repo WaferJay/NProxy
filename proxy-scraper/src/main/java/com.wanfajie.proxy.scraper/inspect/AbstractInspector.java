@@ -219,7 +219,7 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
         private final Object signal = new Object();
 
         private TakeQueueThread() {
-            String outerName = AbstractInspector.this.getClass().getTypeName();
+            String outerName = AbstractInspector.this.getClass().getSimpleName();
             setName(outerName + "-takeQueue");
         }
 
