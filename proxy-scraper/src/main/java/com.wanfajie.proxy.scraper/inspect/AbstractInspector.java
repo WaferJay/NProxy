@@ -22,7 +22,9 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.SynchronousQueue;
 
 public abstract class AbstractInspector implements Inspector, HttpClientStrategyFactory {
 
@@ -32,13 +34,21 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
 
     private final NttpClient client;
 
-    private ConcurrentMap<HttpProxy, Promise<EvaluationReport>> tasks = PlatformDependent.newConcurrentHashMap();
+    private final ConcurrentMap<HttpProxy, Promise<EvaluationReport>> runningTasks = PlatformDependent.newConcurrentHashMap();
+    private final BlockingQueue<Task> tasksQueue = new SynchronousQueue<>();
+    private final int concurrent;
+
     private InspectorHttpClientStrategy httpClientStrategy;
     private InspectorHttpClientStrategy httpsClientStrategy;
     private volatile boolean closed = false;
 
-    public AbstractInspector(NttpClient.Builder builder) {
+    private TakeQueueThread takeQueueThread = new TakeQueueThread();
+
+    public AbstractInspector(NttpClient.Builder builder, int concurrent) {
         this.client = builder.strategyFactory(this).build();
+        this.concurrent = concurrent;
+
+        takeQueueThread.start();
     }
 
     protected abstract InspectorChannelHandler createInspectorChannelHandler();
@@ -51,9 +61,19 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
             return promise;
         }
 
-        tasks.put(proxy, promise);
+        tasksQueue.offer(new Task(proxy, promise));
+
+        return promise;
+    }
+
+    private void inspect0(HttpProxy proxy, Promise<EvaluationReport> promise) {
+
+        runningTasks.put(proxy, promise);
         promise.addListener(f -> {
-            tasks.remove(proxy);
+
+            runningTasks.remove(proxy);
+            takeQueueThread.wakeUp();
+
             if (f.isSuccess()) {
                 logger.debug("Complete inspection {} [{}]", proxy, f.get());
             } else {
@@ -68,12 +88,10 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
                 .onError(promise::tryFailure)
                 .proxy(proxy)
                 .request();
-
-        return promise;
     }
 
     private void generateReport(ReportGenerator generator) {
-        Promise<EvaluationReport> promise = tasks.get(generator.proxy());
+        Promise<EvaluationReport> promise = runningTasks.get(generator.proxy());
 
         if (promise != null && !promise.isDone()) {
             promise.trySuccess(generator.createReport());
@@ -163,24 +181,92 @@ public abstract class AbstractInspector implements Inspector, HttpClientStrategy
 
     @Override
     public void close() {
-        logger.debug("Closing inspector");
         closed = true;
+        takeQueueThread.interrupt();
+
         try {
             client.close();
         } catch (IOException ignored) {
         }
 
-        Map<HttpProxy, Promise<EvaluationReport>> tasks = this.tasks;
-        this.tasks = null;
-
-        for (Map.Entry<HttpProxy, Promise<EvaluationReport>> entry : tasks.entrySet()) {
+        for (Map.Entry<HttpProxy, Promise<EvaluationReport>> entry : runningTasks.entrySet()) {
 
             if (!entry.getValue().isDone()) {
                 entry.getValue().tryFailure(new InspectorClosedException());
             }
         }
+        runningTasks.clear();
 
-        tasks.clear();
-        logger.debug("Closed inspector");
+        for (Task task : tasksQueue) {
+            task.promise.setFailure(new InspectorClosedException());
+        }
+        tasksQueue.clear();
+    }
+
+    private static class Task {
+        private HttpProxy proxy;
+        private Promise<EvaluationReport> promise;
+
+        private Task(HttpProxy proxy, Promise<EvaluationReport> promise) {
+            this.proxy = proxy;
+            this.promise = promise;
+        }
+    }
+
+    private class TakeQueueThread extends Thread {
+
+        private final InternalLogger logger = InternalLoggerFactory.getInstance(this.getClass());
+        private final Object signal = new Object();
+
+        private TakeQueueThread() {
+            String outerName = AbstractInspector.this.getClass().getTypeName();
+            setName(outerName + "-takeQueue");
+        }
+
+        @Override
+        public void run() {
+
+            while (!closed) {
+
+                int less = concurrent - runningTasks.size();
+                for (int i = 0; i < less; i++) {
+                    Task task;
+
+                    try {
+                        task = tasksQueue.take();
+                    } catch (InterruptedException e) {
+                        logger.trace(e);
+                        break;
+                    }
+
+                    inspect0(task.proxy, task.promise);
+                }
+
+                logger.debug("Running tasks: {}/{}", runningTasks.size(), concurrent);
+
+                waitingForTasks();
+            }
+        }
+
+        private void wakeUp() {
+            synchronized (signal) {
+                signal.notify();
+            }
+
+            logger.trace("try to wake up take thread");
+        }
+
+        private void waitingForTasks() {
+
+            logger.trace("Waiting for new tasks to enqueue");
+            synchronized (signal) {
+
+                try {
+                    signal.wait();
+                } catch (InterruptedException e) {
+                    logger.trace(e);
+                }
+            }
+        }
     }
 }

@@ -14,6 +14,7 @@ public final class FullParameters {
     public final LogParameter logParams = new LogParameter();
     public final ProxyServerParameter servParams = new ProxyServerParameter();
     public final ScraperParameter scraParams = new ScraperParameter();
+    public final InspectorParameter inspParams = new InspectorParameter();
 
     @Parameter(names = {"--help", "-h"}, help = true, description = "print this help message and exit", order = 100)
     private boolean help;
@@ -24,6 +25,7 @@ public final class FullParameters {
                 .addObject(logParams)
                 .addObject(servParams)
                 .addObject(scraParams)
+                .addObject(inspParams)
                 .build();
 
         commander.setUsageFormatter(new UnixStyleUsageFormatter(commander));

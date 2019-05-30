@@ -10,8 +10,8 @@ public class HttpbinInspector extends AbstractInspector {
 
     private static final URI HTTP_BIN_URL = URI.create("http://httpbin.org/ip");
 
-    public HttpbinInspector(NttpClient.Builder builder) {
-        super(builder);
+    public HttpbinInspector(NttpClient.Builder builder, int concurrent) {
+        super(builder, concurrent);
     }
 
     @Override

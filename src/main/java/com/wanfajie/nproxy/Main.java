@@ -1,14 +1,12 @@
 package com.wanfajie.nproxy;
 
-import com.wanfajie.nproxy.command.FullParameters;
-import com.wanfajie.nproxy.command.LogParameter;
-import com.wanfajie.nproxy.command.ProxyServerParameter;
-import com.wanfajie.nproxy.command.ScraperParameter;
+import com.wanfajie.nproxy.command.*;
 import com.wanfajie.nproxy.pool.MemProxyPool;
 import com.wanfajie.nproxy.pool.ProxyPool;
 import com.wanfajie.nttpclient.NttpClient;
 import com.wanfajie.proxy.HttpProxy;
 import com.wanfajie.proxy.scraper.DefaultScraperEngine;
+import com.wanfajie.proxy.scraper.HttpProxyScraperEngine;
 import com.wanfajie.proxy.scraper.ScraperEngine;
 import com.wanfajie.proxy.scraper.inspect.Inspector;
 import com.wanfajie.proxy.scraper.inspect.InspectorBridge;
@@ -90,14 +88,14 @@ public class Main {
         }
     }
 
-    private static void initInspector(ScraperParameter scraParams) {
+    private static void initInspector(InspectorParameter inspParams) {
 
         NttpClient.Builder builder = new NttpClient.Builder()
                 .group(workers)
                 .channel(NioSocketChannel.class)
-                .connectTimeout(scraParams.connectTimeout());
+                .connectTimeout(inspParams.connectTimeout());
 
-        inspector = new HttpbinInspector(builder);
+        inspector = new HttpbinInspector(builder, inspParams.concurrent());
     }
 
     private static void initScraper(ScraperParameter scraParams)
@@ -105,7 +103,7 @@ public class Main {
 
         Consumer<HttpProxy> proxyConsumer = proxyPool::add;
 
-        DefaultScraperEngine<HttpProxy> engine = new DefaultScraperEngine<HttpProxy>(workers, new InspectorBridge(inspector, proxyConsumer)) {};
+        DefaultScraperEngine<HttpProxy> engine = new HttpProxyScraperEngine(workers, new InspectorBridge(inspector, proxyConsumer));
 
         if (!scraParams.isDisableDefault()) {
             URL defaultScrapersConfig = Main.class.getResource("/scrapers.properties");
@@ -184,7 +182,7 @@ public class Main {
         Signal.handle(new Signal("INT"), signal -> {
             logger.debug("Hitting {}({})", signal, signal.getNumber());
             if (!signalPromise.trySuccess(signal)) {
-                logger.debug("");
+                logger.debug("Close immediately");
                 System.exit(10);
             }
             logger.debug("Closing program...");
@@ -225,7 +223,7 @@ public class Main {
         initEventLoopGroup();
 
         initProxyPool();
-        initInspector(params.scraParams);
+        initInspector(params.inspParams);
 
         try {
             initScraper(params.scraParams);
